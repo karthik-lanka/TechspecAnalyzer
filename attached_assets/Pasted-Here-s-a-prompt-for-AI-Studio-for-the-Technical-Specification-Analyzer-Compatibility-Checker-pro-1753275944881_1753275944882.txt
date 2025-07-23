@@ -1,0 +1,414 @@
+Here's a prompt for AI Studio for the "Technical Specification Analyzer & Compatibility Checker" project. This prompt instructs the AI to act as a technical assistant, analyzing a provided technical document (simulated here) and a user query to determine compatibility or extract specific information, and then outputting a structured JSON response.
+
+-----
+
+**AI Studio Prompt: Technical Specification Analyzer & Compatibility Checker**
+
+**Role:** You are an intelligent technical assistant specializing in analyzing engineering specifications and determining component compatibility.
+
+**Task:** Given a set of technical specifications (represented by `{{DOCUMENT_TEXT}}`) and a user's query (`{{USER_QUERY}}`), perform the following:
+
+1.  **Extract** all relevant technical parameters mentioned in `{{DOCUMENT_TEXT}}` related to the `{{USER_QUERY}}`.
+2.  **Evaluate** the `{{USER_QUERY}}` against the extracted parameters to determine compatibility or answer the specific technical question.
+3.  **Provide a decision**, a detailed **justification** based *only* on the provided `{{DOCUMENT_TEXT}}`, and clearly **reference the exact sections/parameters** from the document that support your answer.
+4.  **Output** the response in a structured JSON format. If the information is not explicitly available, state that.
+
+**Input Format:**
+
+```
+DOCUMENT_TEXT:
+{{PASTE_YOUR_TECHNICAL_DOCUMENT_CONTENT_HERE}}
+
+USER_QUERY:
+{{YOUR_NATURAL_LANGUAGE_QUERY_HERE}}
+```
+
+**Output Format:**
+
+```json
+{
+  "Decision": "[[Decision: e.g., 'Compatible', 'Incompatible', 'Meets Standard', 'Not Explicitly Covered', 'Value Extracted']]",
+  "Justification": "[[Detailed explanation based *only* on DOCUMENT_TEXT, referencing parameters and sections]]",
+  "Referenced_Sections": [
+    {"section_name": "[[Name of section/parameter]]", "details": "[[Relevant text snippet from document]]"}
+    // Add more if multiple sections are relevant
+  ],
+  "Extracted_Technical_Data": {
+    "[[Parameter Name]]": "[[Value from document]]",
+    // Add all relevant extracted parameters
+  },
+  "Confidence_Score": "[[e.g., 'High', 'Medium', 'Low' - based on certainty of information]]"
+}
+```
+
+**Example Input:**
+
+```
+DOCUMENT_TEXT:
+Datasheet for "Power Supply Unit X100"
+1.  Input Voltage: 100-240V AC, 50/60Hz
+2.  Output Voltage: 12V DC
+3.  Max Output Current: 5 Amps
+4.  Operating Temperature: 0°C to 50°C
+5.  Dimensions: 10cm x 5cm x 3cm
+
+Datasheet for "LED Strip Light Alpha"
+1.  Required Input Voltage: 12V DC
+2.  Current Draw: 4 Amps (at full brightness)
+3.  Operating Temperature Range: -10°C to 60°C
+4.  Dimensions: Flexible strip
+5.  Certification: CE, RoHS
+
+USER_QUERY:
+Is the "Power Supply Unit X100" compatible with the "LED Strip Light Alpha" based on voltage and current requirements?
+```
+
+**Expected Example Output (based on the provided example input):**
+
+```json
+{
+  "Decision": "Compatible",
+  "Justification": "The 'Power Supply Unit X100' provides an output voltage of 12V DC and a maximum output current of 5 Amps. The 'LED Strip Light Alpha' requires an input voltage of 12V DC and draws 4 Amps. Since the power supply's output voltage matches the LED strip's requirement, and its maximum current output (5 Amps) exceeds the LED strip's current draw (4 Amps), they are compatible in terms of power.",
+  "Referenced_Sections": [
+    {"section_name": "Power Supply Unit X100 - Output Voltage", "details": "Output Voltage: 12V DC"},
+    {"section_name": "Power Supply Unit X100 - Max Output Current", "details": "Max Output Current: 5 Amps"},
+    {"section_name": "LED Strip Light Alpha - Required Input Voltage", "details": "Required Input Voltage: 12V DC"},
+    {"section_name": "LED Strip Light Alpha - Current Draw", "details": "Current Draw: 4 Amps (at full brightness)"}
+  ],
+  "Extracted_Technical_Data": {
+    "PSU_Output_Voltage": "12V DC",
+    "PSU_Max_Output_Current": "5 Amps",
+    "LED_Required_Voltage": "12V DC",
+    "LED_Current_Draw": "4 Amps"
+  },
+  "Confidence_Score": "High"
+}
+```  tech-spec-analyzer/
+|-- app.py
+|-- templates/
+|   |-- index.html
+|-- static/
+    |-- css/
+        |-- style.css from flask import Flask, render_template, request, jsonify
+import re
+
+app = Flask(__name__)
+
+def extract_parameter(text, patterns):
+    """Extracts a parameter from text using a list of regex patterns."""
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            return match.group(1)
+    return None
+
+@app.route('/')
+def index():
+    """Renders the main page."""
+    return render_template('index.html')
+
+@app.route('/analyze', methods=['POST'])
+def analyze():
+    """Analyzes the provided document and query."""
+    data = request.get_json()
+    document_text = data.get('document_text', '')
+    
+    # --- Data Extraction Logic ---
+    # This logic is designed to be more robust than the initial example.
+    
+    # Power Supply Unit (PSU) parameters
+    psu_output_voltage_patterns = [r"Output Voltage:\s*(\d+\s*V\s*DC)"]
+    psu_max_current_patterns = [r"Max Output Current:\s*(\d+(\.\d+)?\s*Amps?)"]
+    
+    # LED Strip parameters
+    led_input_voltage_patterns = [r"Required Input Voltage:\s*(\d+\s*V\s*DC)"]
+    led_current_draw_patterns = [r"Current Draw:\s*(\d+(\.\d+)?\s*Amps?)"]
+    
+    psu_voltage_str = extract_parameter(document_text, psu_output_voltage_patterns)
+    psu_current_str = extract_parameter(document_text, psu_max_current_patterns)
+    led_voltage_str = extract_parameter(document_text, led_input_voltage_patterns)
+    led_current_str = extract_parameter(document_text, led_current_draw_patterns)
+
+    extracted_data = {
+        "PSU_Output_Voltage": psu_voltage_str or "Not Found",
+        "PSU_Max_Output_Current": psu_current_str or "Not Found",
+        "LED_Required_Voltage": led_voltage_str or "Not Found",
+        "LED_Current_Draw": led_current_str or "Not Found"
+    }
+    
+    # --- Compatibility Evaluation ---
+    decision = "Not Explicitly Covered"
+    justification = "Could not determine compatibility. One or more required parameters were not found in the document."
+    confidence = "Low"
+    referenced_sections = []
+    
+    all_params_found = all([psu_voltage_str, psu_current_str, led_voltage_str, led_current_str])
+
+    if all_params_found:
+        try:
+            psu_voltage_val = float(re.search(r'(\d+)', psu_voltage_str).group(1))
+            psu_current_val = float(re.search(r'(\d+(\.\d+)?)', psu_current_str).group(1))
+            led_voltage_val = float(re.search(r'(\d+)', led_voltage_str).group(1))
+            led_current_val = float(re.search(r'(\d+(\.\d+)?)', led_current_str).group(1))
+
+            voltage_match = (psu_voltage_val == led_voltage_val)
+            current_sufficient = (psu_current_val >= led_current_val)
+
+            referenced_sections = [
+                {"section_name": "PSU - Output Voltage", "details": f"Output Voltage: {psu_voltage_str}"},
+                {"section_name": "PSU - Max Output Current", "details": f"Max Output Current: {psu_current_str}"},
+                {"section_name": "LED - Required Input Voltage", "details": f"Required Input Voltage: {led_voltage_str}"},
+                {"section_name": "LED - Current Draw", "details": f"Current Draw: {led_current_str}"}
+            ]
+
+            if voltage_match and current_sufficient:
+                decision = "Compatible"
+                justification = (f"The Power Supply provides {psu_voltage_str}, which matches the LED's required {led_voltage_str}. "
+                                 f"The PSU's max current of {psu_current_str} is sufficient to handle the LED's draw of {led_current_str}.")
+                confidence = "High"
+            else:
+                decision = "Incompatible"
+                justification_parts = []
+                if not voltage_match:
+                    justification_parts.append(f"Voltage mismatch: PSU provides {psu_voltage_str} but LED requires {led_voltage_str}.")
+                if not current_sufficient:
+                    justification_parts.append(f"Insufficient current: PSU provides a max of {psu_current_str} but LED requires {led_current_str}.")
+                justification = " ".join(justification_parts)
+                confidence = "High"
+
+        except (AttributeError, ValueError):
+             justification = "Found parameters but could not parse numerical values to perform a comparison."
+             confidence = "Medium"
+
+    # --- Final JSON Output ---
+    response_data = {
+        "Decision": decision,
+        "Justification": justification,
+        "Referenced_Sections": referenced_sections,
+        "Extracted_Technical_Data": extracted_data,
+        "Confidence_Score": confidence
+    }
+
+    return jsonify(response_data)
+
+if __name__ == '__main__':
+    app.run(debug=True)   <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Technical Specification Analyzer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Technical Specification Analyzer & Compatibility Checker</h1>
+            <p>Paste the content of a technical document and a query to analyze compatibility or extract information.</p>
+        </header>
+
+        <main>
+            <div class="form-container">
+                <div class="input-group">
+                    <label for="document_text">Technical Document Content</label>
+                    <textarea id="document_text" rows="15" placeholder="Paste your technical document content here..."></textarea>
+                </div>
+                <div class="input-group">
+                    <label for="user_query">User Query (Currently checks for PSU/LED compatibility)</label>
+                    <textarea id="user_query" rows="4" placeholder="e.g., Is the Power Supply Unit X100 compatible with the LED Strip Light Alpha?"></textarea>
+                </div>
+                <button id="analyze_button">Analyze</button>
+            </div>
+
+            <div class="output-container">
+                <h2>Analysis Result</h2>
+                <div class="result-box">
+                    <pre id="json_output">{ "message": "Results will appear here..." }</pre>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>AI Studio Project - Technical Assistant</p>
+        </footer>
+    </div>
+    <script>
+        // Pre-fill with example data
+        const exampleDocument = `Datasheet for "Power Supply Unit X100"
+1.  Input Voltage: 100-240V AC, 50/60Hz
+2.  Output Voltage: 12V DC
+3.  Max Output Current: 5 Amps
+4.  Operating Temperature: 0°C to 50°C
+5.  Dimensions: 10cm x 5cm x 3cm
+
+Datasheet for "LED Strip Light Alpha"
+1.  Required Input Voltage: 12V DC
+2.  Current Draw: 4 Amps (at full brightness)
+3.  Operating Temperature Range: -10°C to 60°C
+4.  Dimensions: Flexible strip
+5.  Certification: CE, RoHS`;
+
+        const exampleQuery = `Is the "Power Supply Unit X100" compatible with the "LED Strip Light Alpha" based on voltage and current requirements?`;
+
+        document.getElementById('document_text').value = exampleDocument;
+        document.getElementById('user_query').value = exampleQuery;
+
+
+        // Fetch logic
+        document.getElementById('analyze_button').addEventListener('click', () => {
+            const documentText = document.getElementById('document_text').value;
+            const userQuery = document.getElementById('user_query').value;
+            const jsonOutput = document.getElementById('json_output');
+
+            jsonOutput.textContent = 'Analyzing...';
+
+            fetch('/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    document_text: documentText,
+                    user_query: userQuery,
+                }),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                jsonOutput.textContent = JSON.stringify(data, null, 2);
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                jsonOutput.textContent = `An error occurred during analysis: ${error.message}`;
+            });
+        });
+    </script>
+</body>
+</html>  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+    background-color: #f4f4f9;
+    color: #333;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.container {
+    width: 100%;
+    max-width: 900px;
+    background: #fff;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+header {
+    text-align: center;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+}
+
+header h1 {
+    color: #0056b3;
+    margin-bottom: 5px;
+}
+
+header p {
+    color: #666;
+    font-size: 1rem;
+}
+
+.form-container {
+    margin-bottom: 30px;
+}
+
+.input-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #333;
+}
+
+textarea {
+    width: 100%;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+    font-size: 1rem;
+    line-height: 1.5;
+    resize: vertical;
+}
+
+textarea:focus {
+    border-color: #0056b3;
+    outline: none;
+    box-shadow: 0 0 5px rgba(0, 86, 179, 0.2);
+}
+
+button {
+    display: block;
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(45deg, #0056b3, #007bff);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+    transition: background 0.3s ease, transform 0.1s ease;
+}
+
+button:hover {
+    background: linear-gradient(45deg, #004494, #0069d9);
+}
+
+button:active {
+    transform: scale(0.99);
+}
+
+.output-container h2 {
+    color: #0056b3;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+
+.result-box {
+    background-color: #2b2b2b;
+    color: #f8f8f2;
+    padding: 20px;
+    border-radius: 6px;
+    overflow-x: auto;
+}
+
+pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 0.95rem;
+}
+
+footer {
+    text-align: center;
+    margin-top: 30px;
+    padding-top: 15px;
+    border-top: 1px solid #e0e0e0;
+    color: #888;
+    font-size: 0.9rem;
+} make better and complete project with best roadmap may be a like webiste not like app
