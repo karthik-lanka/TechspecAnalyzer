@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Technical Specification Analyzer</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container-fluid">
+        <header class="py-4 mb-4">
+            <div class="container">
+                <div class="text-center">
+                    <h1 class="display-4 mb-3">
+                        <i class="bi bi-cpu text-info me-3"></i>
+                        Technical Specification Analyzer
+                    </h1>
+                    <p class="lead text-muted">
+                        Analyze technical documents and check component compatibility with AI-powered parameter extraction
+                    </p>
+                </div>
+            </div>
+        </header>
+
+        <main class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-10">
+                    <!-- Input Section -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h3 class="card-title mb-0">
+                                <i class="bi bi-file-text me-2"></i>
+                                Document Analysis Input
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <form id="analysisForm">
+                                <div class="mb-4">
+                                    <label for="document_text" class="form-label">
+                                        <strong>Technical Document Content</strong>
+                                        <small class="text-muted ms-2">Paste your technical specifications, datasheets, or documentation</small>
+                                    </label>
+                                    <textarea 
+                                        id="document_text" 
+                                        class="form-control" 
+                                        rows="12" 
+                                        placeholder="Paste your technical document content here...&#10;&#10;Example:&#10;Datasheet for 'Power Supply Unit X100'&#10;1. Input Voltage: 100-240V AC, 50/60Hz&#10;2. Output Voltage: 12V DC&#10;3. Max Output Current: 5 Amps..."
+                                        required
+                                    ></textarea>
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <label for="user_query" class="form-label">
+                                        <strong>Analysis Query</strong>
+                                        <small class="text-muted ms-2">Ask about compatibility or specific technical requirements</small>
+                                    </label>
+                                    <textarea 
+                                        id="user_query" 
+                                        class="form-control" 
+                                        rows="3" 
+                                        placeholder="e.g., Is the Power Supply Unit X100 compatible with the LED Strip Light Alpha based on voltage and current requirements?"
+                                        required
+                                    ></textarea>
+                                </div>
+                                
+                                <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                                    <button type="button" id="analyze_button" class="btn btn-primary btn-lg px-5">
+                                        <i class="bi bi-search me-2"></i>
+                                        Analyze Compatibility
+                                    </button>
+                                    <button type="button" id="load_example" class="btn btn-outline-secondary btn-lg">
+                                        <i class="bi bi-file-earmark-text me-2"></i>
+                                        Load Example
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Output Section -->
+                    <div class="card">
+                        <div class="card-header d-flex align-items-center justify-content-between">
+                            <h3 class="card-title mb-0">
+                                <i class="bi bi-clipboard-data me-2"></i>
+                                Analysis Results
+                            </h3>
+                            <div id="analysis_status" class="badge bg-secondary">Ready</div>
+                        </div>
+                        <div class="card-body">
+                            <div id="result_summary" class="mb-3" style="display: none;">
+                                <!-- Dynamic summary will be inserted here -->
+                            </div>
+                            
+                            <div class="result-container">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <h5 class="mb-0">Detailed JSON Response</h5>
+                                    <button type="button" id="copy_json" class="btn btn-sm btn-outline-secondary" style="display: none;">
+                                        <i class="bi bi-clipboard me-1"></i>
+                                        Copy JSON
+                                    </button>
+                                </div>
+                                <pre id="json_output" class="json-output">
+{
+  "message": "Analysis results will appear here after you submit a document and query..."
+}
+                                </pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="container text-center py-4 mt-5">
+            <hr class="mb-4">
+            <p class="text-muted">
+                <i class="bi bi-robot me-2"></i>
+                AI Studio Technical Assistant - Powered by Advanced Parameter Extraction
+            </p>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Example data
+        const exampleDocument = `Datasheet for "Power Supply Unit X100"
+1. Input Voltage: 100-240V AC, 50/60Hz
+2. Output Voltage: 12V DC
+3. Max Output Current: 5 Amps
+4. Operating Temperature: 0°C to 50°C
+5. Dimensions: 10cm x 5cm x 3cm
+
+Datasheet for "LED Strip Light Alpha"
+1. Required Input Voltage: 12V DC
+2. Current Draw: 4 Amps (at full brightness)
+3. Operating Temperature Range: -10°C to 60°C
+4. Dimensions: Flexible strip
+5. Certification: CE, RoHS`;
+
+        const exampleQuery = `Is the "Power Supply Unit X100" compatible with the "LED Strip Light Alpha" based on voltage and current requirements?`;
+
+        // DOM elements
+        const documentTextEl = document.getElementById('document_text');
+        const userQueryEl = document.getElementById('user_query');
+        const analyzeButtonEl = document.getElementById('analyze_button');
+        const loadExampleEl = document.getElementById('load_example');
+        const jsonOutputEl = document.getElementById('json_output');
+        const analysisStatusEl = document.getElementById('analysis_status');
+        const resultSummaryEl = document.getElementById('result_summary');
+        const copyJsonEl = document.getElementById('copy_json');
+
+        // Load example data
+        loadExampleEl.addEventListener('click', () => {
+            documentTextEl.value = exampleDocument;
+            userQueryEl.value = exampleQuery;
+            analysisStatusEl.textContent = 'Example Loaded';
+            analysisStatusEl.className = 'badge bg-info';
+        });
+
+        // Copy JSON functionality
+        copyJsonEl.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(jsonOutputEl.textContent);
+                const originalText = copyJsonEl.innerHTML;
+                copyJsonEl.innerHTML = '<i class="bi bi-check me-1"></i>Copied!';
+                copyJsonEl.classList.remove('btn-outline-secondary');
+                copyJsonEl.classList.add('btn-success');
+                
+                setTimeout(() => {
+                    copyJsonEl.innerHTML = originalText;
+                    copyJsonEl.classList.remove('btn-success');
+                    copyJsonEl.classList.add('btn-outline-secondary');
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy: ', err);
+            }
+        });
+
+        // Update analysis status and summary
+        function updateAnalysisStatus(status, type = 'secondary') {
+            analysisStatusEl.textContent = status;
+            analysisStatusEl.className = `badge bg-${type}`;
+        }
+
+        function updateResultSummary(data) {
+            if (!data.Decision || data.Decision === 'Error') {
+                resultSummaryEl.style.display = 'none';
+                return;
+            }
+
+            const decisionIcon = {
+                'Compatible': 'bi-check-circle-fill text-success',
+                'Incompatible': 'bi-x-circle-fill text-danger',
+                'Not Explicitly Covered': 'bi-question-circle-fill text-warning'
+            }[data.Decision] || 'bi-info-circle-fill text-info';
+
+            const confidenceColor = {
+                'High': 'text-success',
+                'Medium': 'text-warning',
+                'Low': 'text-danger'
+            }[data.Confidence_Score] || 'text-muted';
+
+            resultSummaryEl.innerHTML = `
+                <div class="alert alert-${data.Decision === 'Compatible' ? 'success' : data.Decision === 'Incompatible' ? 'danger' : 'warning'} d-flex align-items-center">
+                    <i class="${decisionIcon} me-3 fs-4"></i>
+                    <div class="flex-grow-1">
+                        <strong>Decision: ${data.Decision}</strong>
+                        <br>
+                        <small>Confidence: <span class="${confidenceColor}">${data.Confidence_Score}</span></small>
+                    </div>
+                </div>
+                <p class="mb-0"><strong>Summary:</strong> ${data.Justification}</p>
+            `;
+            resultSummaryEl.style.display = 'block';
+        }
+
+        // Main analysis function
+        analyzeButtonEl.addEventListener('click', async () => {
+            const documentText = documentTextEl.value.trim();
+            const userQuery = userQueryEl.value.trim();
+
+            if (!documentText || !userQuery) {
+                updateAnalysisStatus('Error: Missing Input', 'danger');
+                jsonOutputEl.textContent = JSON.stringify({
+                    "error": "Please provide both document content and a query."
+                }, null, 2);
+                return;
+            }
+
+            updateAnalysisStatus('Analyzing...', 'primary');
+            analyzeButtonEl.disabled = true;
+            copyJsonEl.style.display = 'none';
+            resultSummaryEl.style.display = 'none';
+
+            jsonOutputEl.textContent = 'Processing analysis...';
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        document_text: documentText,
+                        user_query: userQuery,
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                jsonOutputEl.textContent = JSON.stringify(data, null, 2);
+                updateResultSummary(data);
+                copyJsonEl.style.display = 'inline-block';
+                
+                if (data.Decision === 'Error') {
+                    updateAnalysisStatus('Analysis Error', 'danger');
+                } else {
+                    updateAnalysisStatus('Analysis Complete', 'success');
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                updateAnalysisStatus('Network Error', 'danger');
+                jsonOutputEl.textContent = JSON.stringify({
+                    "error": "Network error occurred during analysis",
+                    "details": error.message
+                }, null, 2);
+            } finally {
+                analyzeButtonEl.disabled = false;
+            }
+        });
+
+        // Initialize with ready status
+        updateAnalysisStatus('Ready', 'secondary');
+    </script>
+</body>
+</html>
