@@ -1,7 +1,11 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session
 import re
 import os
 import logging
+import uuid
+import time
+import json
+from datetime import datetime
 from typing import Optional, Dict, List, Any
 
 # Configure logging for debugging
@@ -10,7 +14,56 @@ logging.basicConfig(level=logging.DEBUG)
 app = Flask(__name__, 
            template_folder='../frontend/templates',
            static_folder='../frontend/static')
-app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key-for-tech-analyzer")
+
+# Configure app
+app.config['SECRET_KEY'] = os.environ.get("SESSION_SECRET", "dev-secret-key-for-tech-analyzer")
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    "pool_recycle": 300,
+    "pool_pre_ping": True,
+}
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Initialize database
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import DeclarativeBase
+
+class Base(DeclarativeBase):
+    pass
+
+db = SQLAlchemy(model_class=Base)
+db.init_app(app)
+
+# Simple analysis history storage
+class AnalysisHistory:
+    """Simple in-memory storage for analysis history"""
+    def __init__(self):
+        self.sessions = []
+    
+    def save_analysis(self, session_id, document_text, user_query, results, processing_time):
+        """Save analysis to history"""
+        self.sessions.append({
+            'session_id': session_id,
+            'document_text': document_text[:500] + '...' if len(document_text) > 500 else document_text,
+            'user_query': user_query,
+            'decision': results.get('Decision'),
+            'confidence': results.get('Confidence_Score'),
+            'created_at': datetime.now().isoformat(),
+            'processing_time_ms': int(processing_time * 1000),
+            'success': results.get('Decision') != 'Error'
+        })
+        # Keep only last 100 sessions
+        if len(self.sessions) > 100:
+            self.sessions = self.sessions[-100:]
+        
+        app.logger.debug(f"Saved analysis session {session_id}")
+    
+    def get_recent_sessions(self, limit=10):
+        """Get recent analysis sessions"""
+        return self.sessions[-limit:]
+
+# Global analysis history
+analysis_history = AnalysisHistory()
 
 def extract_parameter(text: str, patterns: List[str]) -> Optional[str]:
     """Extracts a parameter from text using a list of regex patterns."""
@@ -62,9 +115,20 @@ def index():
     """Renders the main page."""
     return render_template('index.html')
 
+def get_user_session_id():
+    """Get or create user session ID"""
+    if 'user_session' not in session:
+        session['user_session'] = str(uuid.uuid4())
+    return session['user_session']
+
+
+
 @app.route('/analyze', methods=['POST'])
 def analyze():
-    """Analyzes the provided document and query."""
+    """Analyzes the provided document and query and saves results to database."""
+    start_time = time.time()
+    analysis_session_id = str(uuid.uuid4())
+    
     try:
         data = request.get_json()
         document_text = data.get('document_text', '')
@@ -72,6 +136,7 @@ def analyze():
         
         app.logger.debug(f"Analyzing document of length {len(document_text)}")
         app.logger.debug(f"User query: {user_query}")
+        app.logger.debug(f"Analysis session ID: {analysis_session_id}")
         
         # Enhanced regex patterns for better parameter extraction
         psu_output_voltage_patterns = [
@@ -182,9 +247,15 @@ def analyze():
             "Confidence_Score": confidence,
             "Analysis_Details": {
                 "parameters_found": all_params_found,
-                "extraction_success": bool(psu_voltage_str and psu_current_str and led_voltage_str and led_current_str)
+                "extraction_success": bool(psu_voltage_str and psu_current_str and led_voltage_str and led_current_str),
+                "session_id": analysis_session_id,
+                "processing_time_ms": int((time.time() - start_time) * 1000)
             }
         }
+        
+        # Save analysis to history
+        processing_time = time.time() - start_time
+        analysis_history.save_analysis(analysis_session_id, document_text, user_query, response_data, processing_time)
         
         app.logger.debug(f"Analysis complete: {decision}")
         return jsonify(response_data)
@@ -200,10 +271,99 @@ def analyze():
             "Analysis_Details": {"error": str(e)}
         }), 500
 
+@app.route('/api/history')
+def get_analysis_history():
+    """Get recent analysis history"""
+    try:
+        recent_sessions = analysis_history.get_recent_sessions(20)
+        return jsonify({
+            "status": "success",
+            "history": recent_sessions,
+            "total_sessions": len(analysis_history.sessions)
+        })
+    except Exception as e:
+        app.logger.error(f"Error getting history: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/stats')
+def get_analysis_stats():
+    """Get analysis statistics"""
+    try:
+        sessions = analysis_history.sessions
+        total = len(sessions)
+        successful = len([s for s in sessions if s.get('success', False)])
+        
+        if total > 0:
+            # Decision breakdown
+            decisions = {}
+            for session in sessions:
+                decision = session.get('decision', 'Unknown')
+                decisions[decision] = decisions.get(decision, 0) + 1
+            
+            # Average processing time
+            processing_times = [s.get('processing_time_ms', 0) for s in sessions if s.get('processing_time_ms')]
+            avg_processing_time = sum(processing_times) / len(processing_times) if processing_times else 0
+            
+            stats = {
+                "total_sessions": total,
+                "successful_sessions": successful,
+                "success_rate": round((successful / total) * 100, 1),
+                "decision_breakdown": decisions,
+                "average_processing_time_ms": round(avg_processing_time, 1),
+                "recent_activity": len([s for s in sessions[-10:]]) if total >= 10 else total
+            }
+        else:
+            stats = {
+                "total_sessions": 0,
+                "successful_sessions": 0,
+                "success_rate": 0,
+                "decision_breakdown": {},
+                "average_processing_time_ms": 0,
+                "recent_activity": 0
+            }
+        
+        return jsonify({"status": "success", "stats": stats})
+    except Exception as e:
+        app.logger.error(f"Error getting stats: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/session/<session_id>')
+def get_analysis_session(session_id):
+    """Get details of a specific analysis session"""
+    try:
+        session_data = None
+        for session in analysis_history.sessions:
+            if session.get('session_id') == session_id:
+                session_data = session
+                break
+        
+        if session_data:
+            return jsonify({"status": "success", "session": session_data})
+        else:
+            return jsonify({"status": "error", "message": "Session not found"}), 404
+    except Exception as e:
+        app.logger.error(f"Error getting session {session_id}: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/clear-history', methods=['POST'])
+def clear_analysis_history():
+    """Clear analysis history"""
+    try:
+        analysis_history.sessions.clear()
+        return jsonify({"status": "success", "message": "Analysis history cleared"})
+    except Exception as e:
+        app.logger.error(f"Error clearing history: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route('/health')
 def health_check():
     """Health check endpoint for monitoring."""
-    return jsonify({"status": "healthy", "service": "Tech Spec Analyzer Pro"})
+    return jsonify({
+        "status": "healthy", 
+        "service": "Tech Spec Analyzer Pro",
+        "database": "connected" if db else "not configured",
+        "history_sessions": len(analysis_history.sessions)
+    })
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

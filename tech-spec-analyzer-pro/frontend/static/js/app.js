@@ -25,6 +25,7 @@ class TechSpecAnalyzer {
         this.copyJsonEl = document.getElementById('copy_json');
         this.formatToggleEl = document.getElementById('format_toggle');
         this.exportResultsEl = document.getElementById('export_results');
+        this.viewHistoryEl = document.getElementById('view_history');
 
         // Output elements
         this.jsonOutputEl = document.getElementById('json_output');
@@ -58,6 +59,7 @@ class TechSpecAnalyzer {
         this.copyJsonEl.addEventListener('click', () => this.copyResults());
         this.formatToggleEl.addEventListener('click', () => this.toggleFormat());
         this.exportResultsEl.addEventListener('click', () => this.exportResults());
+        this.viewHistoryEl.addEventListener('click', () => this.showAnalysisHistory());
 
         // Query suggestions
         document.querySelectorAll('[data-query]').forEach(item => {
@@ -98,6 +100,10 @@ class TechSpecAnalyzer {
         this.userQueryEl.addEventListener('input', debounce(() => {
             localStorage.setItem('tech_spec_query', this.userQueryEl.value);
         }, 1000));
+
+        // History modal controls
+        document.getElementById('refresh-history').addEventListener('click', () => this.refreshHistory());
+        document.getElementById('clear-history').addEventListener('click', () => this.clearHistory());
     }
 
     initializeFeatures() {
@@ -573,6 +579,163 @@ ${new Date().toLocaleString()}
         
         // Could implement toast notifications here
         alert(message);
+    }
+
+    // Database and History Management
+    async showAnalysisHistory() {
+        try {
+            const modal = new bootstrap.Modal(document.getElementById('historyModal'));
+            modal.show();
+            
+            // Load statistics and history
+            await this.loadAnalysisStats();
+            await this.loadAnalysisHistory();
+        } catch (error) {
+            console.error('Error showing history:', error);
+            this.showAlert('Error loading analysis history. Please try again.', 'danger');
+        }
+    }
+
+    async loadAnalysisStats() {
+        try {
+            const response = await fetch('/api/stats');
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                const stats = data.stats;
+                document.getElementById('stat-total').textContent = stats.total_sessions;
+                document.getElementById('stat-success').textContent = `${stats.success_rate}%`;
+                document.getElementById('stat-avg-time').textContent = `${stats.average_processing_time_ms}ms`;
+                document.getElementById('stat-recent').textContent = stats.recent_activity;
+            }
+        } catch (error) {
+            console.error('Error loading stats:', error);
+        }
+    }
+
+    async loadAnalysisHistory() {
+        const historyList = document.getElementById('history-list');
+        
+        try {
+            historyList.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-hourglass-split fs-3"></i>
+                    <div>Loading analysis history...</div>
+                </div>
+            `;
+
+            const response = await fetch('/api/history');
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                const sessions = data.history;
+                
+                if (sessions.length === 0) {
+                    historyList.innerHTML = `
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-3"></i>
+                            <div>No analysis sessions found</div>
+                            <small>Start analyzing documents to see history here</small>
+                        </div>
+                    `;
+                    return;
+                }
+
+                historyList.innerHTML = sessions.map(session => {
+                    const date = new Date(session.created_at).toLocaleString();
+                    const confidence = session.confidence || 'Unknown';
+                    const decision = session.decision || 'Unknown';
+                    const processingTime = session.processing_time_ms || 0;
+                    
+                    let badgeClass = 'bg-secondary';
+                    if (decision === 'Compatible') badgeClass = 'bg-success';
+                    else if (decision === 'Incompatible') badgeClass = 'bg-danger';
+                    else if (decision === 'Insufficient Data') badgeClass = 'bg-warning text-dark';
+                    
+                    return `
+                        <div class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">
+                                    <span class="badge ${badgeClass}">${decision}</span>
+                                    <small class="text-muted ms-2">${confidence} confidence</small>
+                                </h6>
+                                <small class="text-muted">${date}</small>
+                            </div>
+                            <p class="mb-1 text-truncate">${session.user_query}</p>
+                            <small class="text-muted">
+                                Processing: ${processingTime}ms | 
+                                Document: ${session.document_text.length} chars
+                            </small>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                throw new Error(data.message || 'Failed to load history');
+            }
+        } catch (error) {
+            console.error('Error loading history:', error);
+            historyList.innerHTML = `
+                <div class="text-center text-danger py-4">
+                    <i class="bi bi-exclamation-triangle fs-3"></i>
+                    <div>Error loading history</div>
+                    <small>${error.message}</small>
+                </div>
+            `;
+        }
+    }
+
+    async refreshHistory() {
+        await this.loadAnalysisStats();
+        await this.loadAnalysisHistory();
+        this.showAlert('Analysis history refreshed', 'success');
+    }
+
+    async clearHistory() {
+        if (!confirm('Are you sure you want to clear all analysis history? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/clear-history', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                await this.loadAnalysisStats();
+                await this.loadAnalysisHistory();
+                this.showAlert('Analysis history cleared successfully', 'success');
+            } else {
+                throw new Error(data.message || 'Failed to clear history');
+            }
+        } catch (error) {
+            console.error('Error clearing history:', error);
+            this.showAlert('Error clearing history. Please try again.', 'danger');
+        }
+    }
+
+    showAlert(message, type = 'info') {
+        // Create a simple alert notification
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 300px;';
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(alertDiv);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
     }
 }
 
