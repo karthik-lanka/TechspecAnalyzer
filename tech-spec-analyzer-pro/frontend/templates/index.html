@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tech Spec Analyzer Pro - Advanced Component Compatibility Analysis</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="#">
+                <i class="bi bi-cpu-fill text-primary me-2"></i>
+                Tech Spec Analyzer Pro
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="nav-link text-muted">
+                    <i class="bi bi-shield-check me-1"></i>
+                    AI-Powered Analysis
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-section bg-gradient text-center py-5">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <h1 class="display-4 fw-bold mb-3">
+                        <i class="bi bi-diagram-3 text-warning me-3"></i>
+                        Professional Technical Analysis
+                    </h1>
+                    <p class="lead mb-4">
+                        Advanced AI-powered parameter extraction and compatibility analysis for electronic components, 
+                        power supplies, and technical specifications with industry-grade precision.
+                    </p>
+                    <div class="hero-features d-flex justify-content-center flex-wrap gap-4">
+                        <div class="feature-badge">
+                            <i class="bi bi-lightning-charge text-warning"></i>
+                            Real-time Analysis
+                        </div>
+                        <div class="feature-badge">
+                            <i class="bi bi-graph-up text-success"></i>
+                            High Accuracy
+                        </div>
+                        <div class="feature-badge">
+                            <i class="bi bi-layers text-info"></i>
+                            Multi-format Support
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Application -->
+    <main class="container my-5">
+        <div class="row">
+            <!-- Input Panel -->
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow-lg h-100">
+                    <div class="card-header bg-primary text-white">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <h4 class="mb-0">
+                                <i class="bi bi-file-text me-2"></i>
+                                Document Input
+                            </h4>
+                            <div class="input-controls">
+                                <button type="button" id="clear_input" class="btn btn-outline-light btn-sm me-2">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                <button type="button" id="load_example" class="btn btn-outline-light btn-sm">
+                                    <i class="bi bi-file-earmark-text"></i>
+                                    Example
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <form id="analysisForm" class="h-100 d-flex flex-column">
+                            <div class="mb-3 flex-grow-1">
+                                <label for="document_text" class="form-label fw-semibold">
+                                    Technical Documentation
+                                    <small class="text-muted d-block">Paste datasheets, specifications, or technical documents</small>
+                                </label>
+                                <textarea 
+                                    id="document_text" 
+                                    class="form-control flex-grow-1 document-input" 
+                                    rows="12" 
+                                    placeholder="Paste your technical document content here...&#10;&#10;Supported formats:&#10;• Component datasheets&#10;• Power supply specifications&#10;• LED strip documentation&#10;• Technical manuals&#10;&#10;Example:&#10;Datasheet for 'Power Supply Unit X100'&#10;1. Input Voltage: 100-240V AC, 50/60Hz&#10;2. Output Voltage: 12V DC&#10;3. Max Output Current: 5 Amps..."
+                                    required
+                                ></textarea>
+                                <div class="input-stats mt-2">
+                                    <small class="text-muted">
+                                        <i class="bi bi-file-text me-1"></i>
+                                        Characters: <span id="char_count">0</span> | 
+                                        <i class="bi bi-list-ul me-1"></i>
+                                        Lines: <span id="line_count">0</span>
+                                    </small>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="user_query" class="form-label fw-semibold">
+                                    Analysis Query
+                                    <small class="text-muted d-block">Describe what you want to analyze or check</small>
+                                </label>
+                                <div class="input-group">
+                                    <textarea 
+                                        id="user_query" 
+                                        class="form-control" 
+                                        rows="3" 
+                                        placeholder="e.g., Check if Power Supply Unit X100 is compatible with LED Strip Alpha based on voltage and current requirements"
+                                        required
+                                    ></textarea>
+                                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                        <i class="bi bi-lightbulb"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="#" data-query="Check PSU and LED compatibility for voltage and current">PSU-LED Compatibility</a></li>
+                                        <li><a class="dropdown-item" href="#" data-query="Extract all technical specifications and parameters">Extract All Parameters</a></li>
+                                        <li><a class="dropdown-item" href="#" data-query="Verify operating temperature compatibility">Temperature Compatibility</a></li>
+                                        <li><a class="dropdown-item" href="#" data-query="Check power requirements and limitations">Power Analysis</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                            
+                            <div class="d-grid">
+                                <button type="button" id="analyze_button" class="btn btn-success btn-lg">
+                                    <i class="bi bi-search me-2"></i>
+                                    <span class="button-text">Analyze Compatibility</span>
+                                    <div class="spinner-border spinner-border-sm d-none ms-2" role="status"></div>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Panel -->
+            <div class="col-lg-6">
+                <div class="card shadow-lg h-100">
+                    <div class="card-header bg-success text-white">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <h4 class="mb-0">
+                                <i class="bi bi-clipboard-data me-2"></i>
+                                Analysis Results
+                            </h4>
+                            <div class="result-controls">
+                                <button type="button" id="export_results" class="btn btn-outline-light btn-sm me-2" disabled>
+                                    <i class="bi bi-download"></i>
+                                </button>
+                                <div id="analysis_status" class="badge bg-light text-dark">Ready</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Quick Summary -->
+                        <div id="result_summary" class="mb-4" style="display: none;">
+                            <!-- Dynamic summary content -->
+                        </div>
+
+                        <!-- Parameter Extraction Preview -->
+                        <div id="parameter_preview" class="mb-4" style="display: none;">
+                            <h6 class="text-muted mb-2">
+                                <i class="bi bi-list-check me-1"></i>
+                                Extracted Parameters
+                            </h6>
+                            <div id="parameter_cards" class="row g-2">
+                                <!-- Dynamic parameter cards -->
+                            </div>
+                        </div>
+
+                        <!-- Detailed Results -->
+                        <div class="result-container">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <h6 class="mb-0">Detailed Analysis Report</h6>
+                                <div class="result-actions">
+                                    <button type="button" id="copy_json" class="btn btn-sm btn-outline-secondary" style="display: none;">
+                                        <i class="bi bi-clipboard me-1"></i>
+                                        Copy
+                                    </button>
+                                    <button type="button" id="format_toggle" class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-code-square me-1"></i>
+                                        JSON
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div id="formatted_results" style="display: none;">
+                                <!-- Human-readable formatted results -->
+                            </div>
+                            
+                            <pre id="json_output" class="json-output">
+{
+  "status": "ready",
+  "message": "Upload technical documentation and submit your analysis query to see detailed compatibility results here.",
+  "features": [
+    "Advanced parameter extraction",
+    "Real-time compatibility analysis", 
+    "Confidence scoring",
+    "Detailed technical reporting"
+  ]
+}
+                            </pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features Section -->
+        <section class="features-section mt-5">
+            <div class="row">
+                <div class="col-12 mb-4">
+                    <h3 class="text-center text-muted">
+                        <i class="bi bi-stars me-2"></i>
+                        Advanced Analysis Features
+                    </h3>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="feature-card text-center">
+                        <i class="bi bi-cpu-fill text-primary mb-2"></i>
+                        <h6>AI Parameter Extraction</h6>
+                        <small class="text-muted">Intelligent pattern recognition for technical specifications</small>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="feature-card text-center">
+                        <i class="bi bi-shield-check text-success mb-2"></i>
+                        <h6>Compatibility Validation</h6>
+                        <small class="text-muted">Comprehensive component compatibility analysis</small>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="feature-card text-center">
+                        <i class="bi bi-graph-up text-warning mb-2"></i>
+                        <h6>Confidence Scoring</h6>
+                        <small class="text-muted">Reliability assessment for all extracted data</small>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="feature-card text-center">
+                        <i class="bi bi-file-earmark-pdf text-info mb-2"></i>
+                        <h6>Export Reports</h6>
+                        <small class="text-muted">Professional analysis reports in multiple formats</small>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-light py-4 mt-5">
+        <div class="container text-center">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <h6>
+                        <i class="bi bi-robot me-2"></i>
+                        Tech Spec Analyzer Pro
+                    </h6>
+                    <small class="text-muted">
+                        Professional-grade technical document analysis powered by advanced AI pattern recognition
+                    </small>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <h6>Supported Components</h6>
+                    <small class="text-muted">
+                        Power Supplies • LED Strips • Electronic Components • Sensors • Modules
+                    </small>
+                </div>
+            </div>
+            <hr class="my-3 opacity-25">
+            <small class="text-muted">
+                Built with Flask, Bootstrap, and Advanced AI Analysis Engine
+            </small>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
